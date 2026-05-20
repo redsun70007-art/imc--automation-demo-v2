@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>IMC 캠페인 대시보드 (Private)</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.8/dist/web/static/pretendard.css">
+<style>
+  body { font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif; }
+  .calendar-bar { transition: all 0.15s; cursor: pointer; }
+  .calendar-bar:hover { transform: translateY(-1px); box-shadow: 0 4px 8px rgba(0,0,0,0.15); z-index: 10; }
+  .calendar-bar.predicted { background-image: repeating-linear-gradient(45deg, transparent, transparent 4px, rgba(255,255,255,0.25) 4px, rgba(255,255,255,0.25) 8px); }
+  ::-webkit-scrollbar { height: 8px; width: 8px; }
+  ::-webkit-scrollbar-track { background: #f1f5f9; }
+  ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+</style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen">
+
+<!-- Header -->
+<header class="bg-white border-b border-slate-200 px-6 py-3 sticky top-0 z-20">
+  <div class="flex items-center justify-between flex-wrap gap-3 max-w-screen-2xl mx-auto">
+    <div class="flex items-center gap-3">
+      <div class="w-10 h-10 bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl flex items-center justify-center text-white font-black text-lg">D</div>
+      <div>
+        <h1 class="text-base font-bold text-slate-900 leading-tight">IMC 캠페인 대시보드</h1>
+        <p class="text-[11px] text-slate-500">Internal Marketing Communications · Private</p>
+      </div>
+    </div>
+    <div class="flex items-center gap-2 flex-wrap">
+      <select id="brandFilter" class="border border-slate-300 rounded-lg px-3 py-1.5 text-xs font-semibold bg-white hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+        <option value="ALL">전체 브랜드</option>
+      </select>
+      <select id="channelFilter" class="border border-slate-300 rounded-lg px-3 py-1.5 text-xs font-semibold bg-white hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+        <option value="ALL">전체 채널</option>
+      </select>
+      <select id="statusFilter" class="border border-slate-300 rounded-lg px-3 py-1.5 text-xs font-semibold bg-white hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+        <option value="ALL">전체 상태</option>
+        <option value="진행중">진행중</option>
+        <option value="예정">예정</option>
+        <option value="종료">종료</option>
+      </select>
+      <span class="text-[11px] text-slate-500 ml-1">업데이트 <span id="updated-at" class="font-semibold text-slate-700">-</span></span>
+    </div>
+  </div>
+</header>
+
+<main class="max-w-screen-2xl mx-auto px-6 py-5">
+
+  <!-- KPI Cards -->
+  <section class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
+    <div class="bg-white border border-slate-200 rounded-xl p-4">
+      <p class="text-[11px] text-slate-500 font-semibold uppercase tracking-wide">총 매출</p>
+      <p id="kpi-sales" class="text-2xl font-black text-slate-900 mt-1">-</p>
+      <p class="text-[11px] text-slate-400 mt-0.5">목표 대비 <span id="kpi-vs-target" class="font-semibold">-</span></p>
+    </div>
+    <div class="bg-white border border-slate-200 rounded-xl p-4">
+      <p class="text-[11px] text-slate-500 font-semibold uppercase tracking-wide">총 캠페인</p>
+      <p id="kpi-count" class="text-2xl font-black text-slate-900 mt-1">-</p>
+      <p class="text-[11px] text-slate-400 mt-0.5">필터 조건</p>
+    </div>
+    <div class="bg-white border border-slate-200 rounded-xl p-4">
+      <p class="text-[11px] text-slate-500 font-semibold uppercase tracking-wide">진행 중</p>
+      <p id="kpi-active" class="text-2xl font-black text-emerald-600 mt-1">-</p>
+      <p class="text-[11px] text-slate-400 mt-0.5">현재 라이브</p>
+    </div>
+    <div class="bg-white border border-slate-200 rounded-xl p-4">
+      <p class="text-[11px] text-slate-500 font-semibold uppercase tracking-wide">평균 달성률</p>
+      <p id="kpi-achieve" class="text-2xl font-black text-indigo-600 mt-1">-</p>
+      <p class="text-[11px] text-slate-400 mt-0.5">예정 제외</p>
+    </div>
+  </section>
+
+  <!-- Calendar -->
+  <section class="bg-white border border-slate-200 rounded-xl p-4 mb-5">
+    <div class="flex items-center justify-between mb-3">
+      <h2 class="text-sm font-bold text-slate-900">📅 채널별 캠페인 캘린더</h2>
+      <span class="text-[11px] text-slate-500">2026-04-28 ~ 2026-05-31</span>
+    </div>
+    <div id="calendar" class="overflow-x-auto"></div>
+  </section>
+
+  <!-- Table -->
+  <section class="bg-white border border-slate-200 rounded-xl p-4">
+    <h2 class="text-sm font-bold text-slate-900 mb-3">💰 캠페인별 매출 현황</h2>
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead>
+          <tr class="border-b-2 border-slate-200 text-slate-500 text-[11px] uppercase tracking-wide">
+            <th class="text-left py-2 px-2 font-bold">브랜드</th>
+            <th class="text-left py-2 px-2 font-bold">채널</th>
+            <th class="text-left py-2 px-2 font-bold">캠페인</th>
+            <th class="text-left py-2 px-2 font-bold">기간</th>
+            <th class="text-left py-2 px-2 font-bold">상태</th>
+            <th class="text-right py-2 px-2 font-bold">매출</th>
+            <th class="text-right py-2 px-2 font-bold">목표</th>
+            <th class="text-left py-2 px-2 font-bold w-56">달성률</th>
+          </tr>
+        </thead>
+        <tbody id="tableBody"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <footer class="mt-5 text-center text-[11px] text-slate-400">
+    🔒 Internal Use Only · Cloudflare Access protected
+  </footer>
+
+</main>
+
+<script>
+const BRAND_COLORS = {
+  "MLB": "#2563eb",
+  "DISCOVERY": "#059669",
+  "DUVETICA": "#7c3aed",
+  "STRETCH ANGELS": "#db2777",
+  "SUPRA": "#ea580c",
+  "TAILORED": "#dc2626"
+};
+
+let allData = [];
+let activeBrand = "ALL";
+let activeChannel = "ALL";
+let activeStatus = "ALL";
+
+fetch("data.json")
+  .then(r => r.json())
+  .then(data => {
+    allData = data;
+    initFilters();
+    render();
+    document.getElementById("updated-at").textContent = new Date().toLocaleDateString("ko-KR");
+  })
+  .catch(e => {
+    document.getElementById("calendar").innerHTML = `<p class="text-sm text-red-500 p-4">data.json 로드 실패: ${e.message}</p>`;
+  });
+
+function initFilters() {
+  const brands = [...new Set(allData.map(d => d.BRAND))].sort();
+  const channels = [...new Set(allData.map(d => d.CHANNEL))].sort();
+  const brandSel = document.getElementById("brandFilter");
+  const channelSel = document.getElementById("channelFilter");
+  brands.forEach(b => brandSel.appendChild(new Option(b, b)));
+  channels.forEach(c => channelSel.appendChild(new Option(c, c)));
+  brandSel.addEventListener("change", e => { activeBrand = e.target.value; render(); });
+  channelSel.addEventListener("change", e => { activeChannel = e.target.value; render(); });
+  document.getElementById("statusFilter").addEventListener("change", e => { activeStatus = e.target.value; render(); });
+}
+
+function getFiltered() {
+  return allData.filter(d =>
+    (activeBrand === "ALL" || d.BRAND === activeBrand) &&
+    (activeChannel === "ALL" || d.CHANNEL === activeChannel) &&
+    (activeStatus === "ALL" || d.STATUS === activeStatus)
+  );
+}
+
+function fmtMoney(n) {
+  if (n >= 1e8) return (n / 1e8).toFixed(1) + "억";
+  if (n >= 1e4) return Math.round(n / 1e4).toLocaleString() + "만";
+  return n.toLocaleString();
+}
+
+function render() {
+  const data = getFiltered();
+  renderKPI(data);
+  renderCalendar(data);
+  renderTable(data);
+}
+
+function renderKPI(data) {
+  const totalSales = data.reduce((s, d) => s + (d.SALES || 0), 0);
+  const totalTarget = data.reduce((s, d) => s + (d.TARGET || 0), 0);
+  const activeCount = data.filter(d => d.STATUS === "진행중").length;
+  const achieved = data.filter(d => d.STATUS !== "예정");
+  const avgAchieve = achieved.length ? achieved.reduce((s, d) => s + (d.ACHIEVE || 0), 0) / achieved.length : 0;
+  const vsTarget = totalTarget > 0 ? Math.round((totalSales / totalTarget) * 100) : 0;
+  document.getElementById("kpi-sales").textContent = fmtMoney(totalSales) + "원";
+  document.getElementById("kpi-vs-target").textContent = vsTarget + "%";
+  document.getElementById("kpi-count").textContent = data.length + "개";
+  document.getElementById("kpi-active").textContent = activeCount + "개";
+  document.getElementById("kpi-achieve").textContent = avgAchieve.toFixed(0) + "%";
+}
+
+function renderCalendar(data) {
+  const START = new Date("2026-04-28");
+  const END = new Date("2026-05-31");
+  const DAYS = Math.round((END - START) / 86400000) + 1;
+  const channels = [...new Set(data.map(d => d.CHANNEL))].sort();
+
+  if (channels.length === 0) {
+    document.getElementById("calendar").innerHTML = `<p class="text-xs text-slate-400 p-8 text-center">필터 조건에 맞는 캠페인이 없습니다</p>`;
+    return;
+  }
+
+  let html = `<div class="min-w-[900px] border border-slate-200 rounded-lg overflow-hidden">`;
+
+  // Header row
+  html += `<div class="flex bg-slate-50 border-b border-slate-200">`;
+  html += `<div class="flex-none w-24 text-[11px] font-bold text-slate-600 px-3 py-2 border-r border-slate-200">채널</div>`;
+  html += `<div class="flex-1 flex">`;
+  for (let i = 0; i < DAYS; i++) {
+    const d = new Date(START.getTime() + i * 86400000);
+    const isWeekend = d.getDay() === 0 || d.getDay() === 6;
+    const isFirstOfMonth = d.getDate() === 1;
+    const isToday = d.toDateString() === new Date(2026, 4, 19).toDateString(); // 강의 기준일
+    html += `<div class="flex-1 text-center text-[10px] py-1.5 ${isWeekend ? 'text-rose-500' : 'text-slate-500'} ${isFirstOfMonth ? 'font-bold text-slate-800 border-l-2 border-slate-300' : ''} ${isToday ? 'bg-indigo-50 font-bold text-indigo-700' : ''}">${d.getDate()}</div>`;
+  }
+  html += `</div></div>`;
+
+  // Channel rows
+  channels.forEach(ch => {
+    const channelData = data.filter(d => d.CHANNEL === ch);
+    const sorted = [...channelData].sort((a, b) => new Date(a.START_DATE) - new Date(b.START_DATE));
+    const rowEnds = [];
+    const positioned = sorted.map(c => {
+      const start = new Date(c.START_DATE);
+      const end = new Date(c.END_DATE);
+      let r = 0;
+      while (rowEnds[r] && rowEnds[r] >= start) r++;
+      rowEnds[r] = end;
+      return { ...c, _row: r };
+    });
+    const maxRow = Math.max(rowEnds.length, 1);
+    const rowHeight = Math.max(38, maxRow * 22 + 8);
+
+    html += `<div class="flex border-b border-slate-100 hover:bg-slate-50/40">`;
+    html += `<div class="flex-none w-24 text-xs font-semibold px-3 border-r border-slate-200 bg-white flex items-center">${ch}</div>`;
+    html += `<div class="flex-1 relative" style="height: ${rowHeight}px;">`;
+
+    // weekend background
+    for (let i = 0; i < DAYS; i++) {
+      const d = new Date(START.getTime() + i * 86400000);
+      if (d.getDay() === 0 || d.getDay() === 6) {
+        const left = (i / DAYS) * 100;
+        const w = (1 / DAYS) * 100;
+        html += `<div class="absolute top-0 bottom-0 bg-rose-50/30" style="left:${left}%; width:${w}%;"></div>`;
+      }
+    }
+
+    positioned.forEach(d => {
+      const start = new Date(d.START_DATE);
+      const end = new Date(d.END_DATE);
+      if (end < START || start > END) return;
+      const dayStart = Math.max(0, Math.round((start - START) / 86400000));
+      const dayEnd = Math.min(DAYS - 1, Math.round((end - START) / 86400000));
+      const left = (dayStart / DAYS) * 100;
+      const width = ((dayEnd - dayStart + 1) / DAYS) * 100;
+      const color = BRAND_COLORS[d.BRAND] || "#64748b";
+      const opacity = d.STATUS === "예정" ? "0.6" : d.STATUS === "종료" ? "0.75" : "1";
+      const patternClass = d.STATUS === "예정" ? "predicted" : "";
+      const top = d._row * 22 + 5;
+      html += `<div class="calendar-bar ${patternClass} absolute rounded text-[10px] text-white font-semibold px-2 py-0.5 truncate flex items-center"
+        style="left:${left}%; width:${width}%; top:${top}px; height:18px; background:${color}; opacity:${opacity};"
+        title="[${d.BRAND}] ${d.PROMO_NAME} | ${d.START_DATE} ~ ${d.END_DATE} | 매출 ${fmtMoney(d.SALES)}원 (달성률 ${d.ACHIEVE}%)">${d.PROMO_NAME}</div>`;
+    });
+
+    html += `</div></div>`;
+  });
+
+  html += `</div>`;
+  document.getElementById("calendar").innerHTML = html;
+}
+
+function renderTable(data) {
+  const tbody = document.getElementById("tableBody");
+  const sorted = [...data].sort((a, b) => (b.SALES || 0) - (a.SALES || 0));
+  if (sorted.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="8" class="text-center text-xs text-slate-400 py-8">필터 조건에 맞는 캠페인이 없습니다</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = sorted.map(d => {
+    const achieve = d.ACHIEVE || 0;
+    const barColor = achieve >= 100 ? "bg-emerald-500" : achieve >= 70 ? "bg-indigo-500" : achieve > 0 ? "bg-amber-500" : "bg-slate-300";
+    const statusColor = d.STATUS === "진행중" ? "bg-emerald-100 text-emerald-700" : d.STATUS === "종료" ? "bg-slate-100 text-slate-600" : "bg-amber-100 text-amber-700";
+    return `
+      <tr class="border-b border-slate-100 hover:bg-slate-50">
+        <td class="py-2.5 px-2 font-bold" style="color:${BRAND_COLORS[d.BRAND] || '#64748b'};">${d.BRAND}</td>
+        <td class="py-2.5 px-2 text-slate-600">${d.CHANNEL}</td>
+        <td class="py-2.5 px-2 font-medium text-slate-900">${d.PROMO_NAME}</td>
+        <td class="py-2.5 px-2 text-xs text-slate-500 font-mono">${d.START_DATE.slice(5)} ~ ${d.END_DATE.slice(5)}</td>
+        <td class="py-2.5 px-2"><span class="inline-block px-2 py-0.5 rounded-full text-[11px] font-bold ${statusColor}">${d.STATUS}</span></td>
+        <td class="py-2.5 px-2 text-right font-mono font-semibold">${fmtMoney(d.SALES || 0)}</td>
+        <td class="py-2.5 px-2 text-right font-mono text-slate-500">${fmtMoney(d.TARGET || 0)}</td>
+        <td class="py-2.5 px-2">
+          <div class="flex items-center gap-2">
+            <div class="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden">
+              <div class="h-full ${barColor} rounded-full" style="width: ${Math.min(achieve, 100)}%;"></div>
+            </div>
+            <span class="text-xs font-bold w-10 text-right">${achieve}%</span>
+          </div>
+        </td>
+      </tr>
+    `;
+  }).join("");
+}
+</script>
+</body>
+</html>
